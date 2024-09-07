@@ -1,0 +1,20 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "setupFilesAfterEnv": ["<rootDir>/test/jest.setup.ts"],
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@base/(.*)$": "<rootDir>/src/base/$1",
+    "^@features/(.*)$": "<rootDir>/src/features/$1",
+    "^@infrastructure/(.*)$": "<rootDir>/src/infrastructure/$1",
+    "^@settings/(.*)$": "<rootDir>/src/settings/$1",
+    "^@utils/(.*)$": "<rootDir>/src/utils/$1"
+  },
+  "verbose": true,
+  "collectCoverage": true,
+  "coverageReporters": ["text-summary", "lcov"]
+}
