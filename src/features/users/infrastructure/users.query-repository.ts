@@ -8,38 +8,30 @@ import {
   UserOutputPaginationDto,
   UserOutputPaginationDtoMapper,
 } from '@features/users/api/dto/output/user.output.pagination.dto';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { User } from '@features/users/domain/user.entity';
 
 @Injectable()
 export class UsersQueryRepository {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private dataSource: DataSource,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+  ) {}
 
   public async getById(userId: string): Promise<UserOutputDto | null> {
-    const user = await this.dataSource.query(
-      `
-SELECT  u.id, 
-        u.login, 
-        u.password, 
-        u.email, 
-        u.created_at,
-        rc.is_confirmed AS recovery_is_confirmed,
-        rc.confirmation_code AS recovery_confirmation_code,
-        ec.is_confirmed AS email_is_confirmed,
-        ec.confirmation_code AS email_confirmation_code,
-        ec.expiration_date AS email_expiration_date FROM users u 
-LEFT join email_confirmations ec ON u.id = ec.user_id 
-LEFT join recovery_code rc ON u.id = rc.user_id
-where u.id = $1
-    `,
-      [userId],
-    );
+    const user = await this.userRepository.findOne({
+      where: {
+        id: userId,
+      },
+    });
 
-    if (!Boolean(user.length)) {
+    if (!user) {
       return null;
     }
 
-    return UserOutputDtoMapper(user.at(0));
+    return UserOutputDtoMapper(user);
   }
 
   public async getAll(query: UsersQuery): Promise<UserOutputPaginationDto> {
@@ -98,7 +90,7 @@ where u.id = $1
     FROM
         users u
     LEFT JOIN
-        email_confirmations ec ON u.id = ec.user_id
+        email_confirmation ec ON u.id = ec.user_id
     LEFT JOIN
         recovery_code rc ON u.id = rc.user_id
     WHERE
@@ -135,4 +127,54 @@ where u.id = $1
       Number(pageNumber),
     );
   }
+  // public async getAll(query: UsersQuery): Promise<UserOutputPaginationDto> {
+  //   const {
+  //     searchLoginTerm,
+  //     searchEmailTerm,
+  //     sortBy = 'createdAt',
+  //     sortDirection = 'desc',
+  //     pageNumber = 1,
+  //     pageSize = 10,
+  //   } = query;
+  //
+  //   // Map sortBy to valid fields in the database
+  //   const validSortFields = {
+  //     createdAt: 'user.created_at',
+  //     login: 'user.login',
+  //     email: 'user.email',
+  //   };
+  //   const sortField = validSortFields[sortBy] || 'user.created_at';
+  //   const direction = sortDirection.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+  //
+  //   // Initialize query builder
+  //   const queryBuilder = this.userRepository.createQueryBuilder('user')
+  //     .leftJoinAndSelect('user.emailConfirmation', 'emailConfirmation')
+  //     .leftJoinAndSelect('user.recoveryCode', 'recoveryCode');
+  //
+  //   // Add filtering conditions
+  //   if (searchLoginTerm) {
+  //     queryBuilder.andWhere('user.login ILIKE :searchLoginTerm', { searchLoginTerm: `%${searchLoginTerm}%` });
+  //   }
+  //   if (searchEmailTerm) {
+  //     queryBuilder.andWhere('user.email ILIKE :searchEmailTerm', { searchEmailTerm: `%${searchEmailTerm}%` });
+  //   }
+  //
+  //   // Apply sorting, pagination, and execute the query
+  //   const [users, totalCount] = await queryBuilder
+  //     .orderBy(sortField, direction)
+  //     .skip((pageNumber - 1) * pageSize)
+  //     .take(pageSize)
+  //     .getManyAndCount();
+  //
+  //   // Map users to the required DTO format
+  //   const userList = users.map(user => UserOutputDtoMapper(user));
+  //
+  //   // Return paginated result
+  //   return UserOutputPaginationDtoMapper(
+  //     userList,
+  //     totalCount,
+  //     pageSize,
+  //     pageNumber,
+  //   );
+  // }
 }

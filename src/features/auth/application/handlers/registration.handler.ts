@@ -4,8 +4,8 @@ import { BadRequestException } from '@nestjs/common';
 import { add, getCurrentISOStringDate } from '@utils/dates';
 import { getUniqueId } from '@utils/utils';
 import { SharedService } from '@infrastructure/servises/shared/shared.service';
-import { EmailConfirmation } from '@features/users/domain/emailConfirmation.entity';
 import { NewUserDto } from '@features/users/api/dto/new-user.dto';
+import { NewEmailConfirmationDto } from '@features/auth/api/dto/new-email-confirmation.dto';
 
 export class RegistrationCommand {
   constructor(
@@ -49,10 +49,10 @@ export class RegistrationHandler
       email,
     };
 
-    const emailConfirmation: EmailConfirmation = {
-      is_confirmed: false,
-      confirmation_code: confirmationCode,
-      expiration_date: add(getCurrentISOStringDate(), { hours: 1 }),
+    const emailConfirmation: NewEmailConfirmationDto = {
+      isConfirmed: false,
+      confirmationCode: confirmationCode,
+      expirationDate: add(getCurrentISOStringDate(), { hours: 1 }),
     };
 
     await this.usersRepository.create(newUser, emailConfirmation);

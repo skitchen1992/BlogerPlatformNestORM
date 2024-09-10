@@ -167,7 +167,7 @@ describe('Users (e2e) GET', () => {
     });
   });
 
-  it('Should getUserById array by filters', async () => {
+  it('Should get array by filters', async () => {
     const userList = [
       { login: 'user01', password: 'string', email: 'email1p@gg.cm' },
       { login: 'user02', password: 'string', email: 'email1p@gg.com' },

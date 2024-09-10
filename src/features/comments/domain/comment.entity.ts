@@ -16,27 +16,32 @@ export class Comment {
 
   @Column({
     type: 'varchar',
+    nullable: false,
     length: 300,
   })
   content: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', nullable: false })
   user_id: string;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', nullable: false, length: 255 })
   user_login: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', nullable: false })
   post_id: string;
 
-  @CreateDateColumn({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn({
+    type: 'timestamptz',
+    nullable: false,
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   created_at: Date;
 
-  @ManyToOne(() => User, (user) => user.comments, { onDelete: 'CASCADE' }) // Устанавливаем связь с таблицей пользователей
+  @ManyToOne(() => User, (user) => user.comments, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user?: User;
 
-  @ManyToOne(() => Post, (post) => post.comments, { onDelete: 'CASCADE' }) // Устанавливаем связь с таблицей постов
+  @ManyToOne(() => Post, (post) => post.comments, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'post_id' })
-  post: Post;
+  post?: Post;
 }
