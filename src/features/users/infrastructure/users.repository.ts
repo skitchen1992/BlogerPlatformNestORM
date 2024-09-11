@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { RecoveryCodeDto } from '@features/auth/api/dto/recovery-code.dto';
 import { NewUserDto } from '@features/users/api/dto/new-user.dto';
 import { User } from '@features/users/domain/user.entity';

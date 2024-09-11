@@ -17,13 +17,13 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 10, nullable: false })
+  @Column({ type: 'varchar', collation: 'C', length: 10, nullable: false })
   login: string;
 
   @Column({ type: 'varchar', nullable: false })
   password: string;
 
-  @Column({ type: 'varchar', nullable: false })
+  @Column({ type: 'varchar', collation: 'C', nullable: false })
   email: string;
 
   @CreateDateColumn({
