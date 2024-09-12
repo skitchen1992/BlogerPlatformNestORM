@@ -1,53 +1,43 @@
 import { Injectable } from '@nestjs/common';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Session } from '@features/session/domain/session.entity';
 import { NewSessionDto } from '@features/session/api/dto/new-session.dto';
 
 @Injectable()
 export class SessionsRepository {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(Session)
+    private readonly sessionRepository: Repository<Session>,
+  ) {}
 
   public async getSessionByDeviceId(deviceId: string): Promise<Session | null> {
     try {
-      const devise = await this.dataSource.query(
-        `
-      SELECT * FROM sessions s
-      WHERE s.device_id = $1
-    `,
-        [deviceId],
-      );
-
-      if (!devise.at(0)) {
-        return null;
-      }
-
-      return devise.at(0);
+      return await this.sessionRepository.findOne({
+        where: { device_id: deviceId },
+      });
     } catch (e) {
+      console.error('Error getSessionByDeviceId', {
+        error: e,
+      });
       return null;
     }
   }
 
   public async create(newSession: NewSessionDto): Promise<string> {
     try {
-      const result = await this.dataSource.query(
-        `
-      INSERT INTO sessions (user_id, ip, title, last_active_date, token_issue_date, token_expiration_date, device_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id;
-    `,
-        [
-          newSession.userId,
-          newSession.ip,
-          newSession.title,
-          newSession.lastActiveDate,
-          newSession.tokenIssueDate,
-          newSession.tokenExpirationDate,
-          newSession.deviceId,
-        ],
-      );
+      const session = this.sessionRepository.create({
+        user_id: newSession.userId,
+        ip: newSession.ip,
+        title: newSession.title,
+        last_active_date: newSession.lastActiveDate,
+        token_issue_date: newSession.tokenIssueDate,
+        token_expiration_date: newSession.tokenExpirationDate,
+        device_id: newSession.deviceId,
+      });
 
-      return result[0].id;
+      const result = await this.sessionRepository.save(session);
+      return result.id;
     } catch (e) {
       console.error('Error inserting user into database', {
         error: e,
@@ -58,14 +48,10 @@ export class SessionsRepository {
 
   public async deleteSessionByDeviceId(deviceId: string): Promise<boolean> {
     try {
-      const result = await this.dataSource.query(
-        `
-        DELETE FROM sessions
-        WHERE device_id = $1;
-    `,
-        [deviceId],
-      );
-      return result.at(1) === 1;
+      const result = await this.sessionRepository.delete({
+        device_id: deviceId,
+      });
+      return result.affected === 1;
     } catch (e) {
       return false;
     }
@@ -73,16 +59,14 @@ export class SessionsRepository {
 
   async deleteSessionListByUserId(userId: string): Promise<boolean> {
     try {
-      const deleteResult = await this.dataSource.query(
-        `
-  DELETE FROM sessions
-  WHERE user_id = $1
-  `,
-        [userId],
-      );
-
-      return Boolean(deleteResult.at(1));
+      const deleteResult = await this.sessionRepository.delete({
+        user_id: userId,
+      });
+      return deleteResult.affected === 1;
     } catch (e) {
+      console.error('Error deleting sessions by userId', {
+        error: e,
+      });
       return false;
     }
   }
@@ -93,19 +77,19 @@ export class SessionsRepository {
     lastActiveDate: Date,
   ): Promise<boolean> {
     try {
-      const updateResult = await this.dataSource.query(
-        `
-      UPDATE sessions
-      SET token_expiration_date = $1, 
-            last_active_date = $2
-      WHERE device_id = $3
-      RETURNING id;
-      `,
-        [tokenExpirationDate, lastActiveDate, deviceId],
+      const updateResult = await this.sessionRepository.update(
+        { device_id: deviceId },
+        {
+          token_expiration_date: tokenExpirationDate,
+          last_active_date: lastActiveDate,
+        },
       );
 
-      return Boolean(updateResult.at(1));
+      return updateResult.affected === 1;
     } catch (e) {
+      console.error('Error updating dates by deviceId', {
+        error: e,
+      });
       return false;
     }
   }
