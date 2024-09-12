@@ -1,5 +1,4 @@
 import { getCurrentISOStringDate } from '@utils/dates';
-import { User } from '@features/users/domain/user.entity';
 import { NewUserDto } from '@features/users/api/dto/new-user.dto';
 import { NewBlogDto } from '@features/blogs/api/dto/new-blog.dto';
 import { NewPostDto } from '@features/posts/api/dto/new-post.dto';
