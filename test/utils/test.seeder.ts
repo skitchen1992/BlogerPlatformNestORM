@@ -1,5 +1,4 @@
 import { getCurrentISOStringDate } from '@utils/dates';
-import { User } from '@features/users/domain/user.entity';
 import { NewUserDto } from '@features/users/api/dto/new-user.dto';
 import { NewBlogDto } from '@features/blogs/api/dto/new-blog.dto';
 import { NewPostDto } from '@features/posts/api/dto/new-post.dto';
@@ -20,24 +19,22 @@ export const testSeeder = {
     };
   },
 
-  createUserDtoHashPass(hashPass: string): User {
+  createUserDtoHashPass(hashPass: string): NewUserDto {
     return {
-      id: '',
       login: 'test',
       email: 'test@gmail.com',
       password: hashPass,
-      created_at: getCurrentISOStringDate(),
+      created_at: new Date(),
     };
   },
 
-  createUserListDto(count: number, pass?: string): User[] {
+  createUserListDto(count: number, pass?: string): NewUserDto[] {
     return new Array(count).fill(null).map((item, index) => {
       return {
-        id: '',
         login: `test${index}`,
         email: `test${index}@gmail.com`,
         password: pass || `123456789${index}`,
-        created_at: getCurrentISOStringDate(),
+        created_at: new Date(),
       };
     });
   },

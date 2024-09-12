@@ -9,16 +9,16 @@ import { User } from '@features/users/domain/user.entity';
 
 @Entity('recovery_code')
 export class RecoveryCode {
-  @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', nullable: false })
   user_id: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', nullable: false })
   confirmation_code: string;
 
-  @Column({ type: 'boolean' })
+  @Column({ type: 'boolean', nullable: false })
   is_confirmed: boolean;
 
   @OneToOne(() => User, (user) => user.recoveryCode, { onDelete: 'CASCADE' })

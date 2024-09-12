@@ -9,10 +9,10 @@ import { User } from '@features/users/domain/user.entity';
 
 @Entity('sessions')
 export class Session {
-  @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', nullable: false })
   user_id: string;
 
   @Column({ type: 'varchar', length: 255, nullable: false })

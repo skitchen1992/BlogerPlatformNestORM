@@ -3,8 +3,8 @@ import {
   Column,
   PrimaryGeneratedColumn,
   OneToOne,
-  JoinColumn,
   OneToMany,
+  CreateDateColumn,
 } from 'typeorm';
 import { EmailConfirmation } from '@features/users/domain/emailConfirmation.entity';
 import { RecoveryCode } from '@features/users/domain/recoveryCode.entity';
@@ -17,25 +17,30 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 10 })
+  @Column({ type: 'varchar', collation: 'C', length: 10, nullable: false })
   login: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', nullable: false })
   password: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', collation: 'C', nullable: false })
   email: string;
 
-  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
-  created_at: string;
+  @CreateDateColumn({
+    type: 'timestamptz',
+    nullable: false,
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  created_at: Date;
 
-  @OneToOne(() => EmailConfirmation, { nullable: true, cascade: true })
-  @JoinColumn({ name: 'user_id' })
-  emailConfirmation?: EmailConfirmation;
+  @OneToOne(
+    () => EmailConfirmation,
+    (emailConfirmation) => emailConfirmation.user,
+  )
+  emailConfirmation: EmailConfirmation;
 
-  @OneToOne(() => RecoveryCode, { nullable: true, cascade: true })
-  @JoinColumn({ name: 'user_id' })
-  recoveryCode?: RecoveryCode;
+  @OneToOne(() => RecoveryCode, (recoveryCode) => recoveryCode.user)
+  recoveryCode: RecoveryCode;
 
   @OneToMany(() => Session, (session) => session.user)
   sessions?: Session[];

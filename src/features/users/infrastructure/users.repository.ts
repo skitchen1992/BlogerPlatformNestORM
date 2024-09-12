@@ -1,83 +1,67 @@
 import { Injectable } from '@nestjs/common';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
-import { EmailConfirmation } from '@features/users/domain/emailConfirmation.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { RecoveryCodeDto } from '@features/auth/api/dto/recovery-code.dto';
-import { UserJoined } from '@features/users/api/dto/User-joined.dto';
 import { NewUserDto } from '@features/users/api/dto/new-user.dto';
+import { User } from '@features/users/domain/user.entity';
+import { NewEmailConfirmationDto } from '@features/auth/api/dto/new-email-confirmation.dto';
+import { EmailConfirmation } from '@features/users/domain/emailConfirmation.entity';
+import { RecoveryCode } from '@features/users/domain/recoveryCode.entity';
 
 @Injectable()
 export class UsersRepository {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(EmailConfirmation)
+    private emailConfirmationRepository: Repository<EmailConfirmation>,
+    @InjectRepository(RecoveryCode)
+    private recoveryCodeRepository: Repository<RecoveryCode>,
+  ) {}
 
-  public async getUserById(userId: string): Promise<UserJoined | null> {
+  public async getUserById(userId: string): Promise<User | null> {
     try {
-      const user = await this.dataSource.query(
-        `
-    SELECT
-        u.id,
-        u.login,
-        u.password,
-        u.email,
-        u.created_at,
-        rc.is_confirmed AS recovery_is_confirmed,
-        rc.confirmation_code AS recovery_confirmation_code,
-        ec.is_confirmed AS email_is_confirmed,
-        ec.confirmation_code AS email_confirmation_code,
-        ec.expiration_date AS email_expiration_date
-    FROM
-        users u
-    LEFT JOIN
-        email_confirmations ec ON u.id = ec.user_id
-    LEFT JOIN
-        recovery_code rc ON u.id = rc.user_id
-     WHERE u.id = $1
-    `,
-        [
-          userId, //$1
-        ],
-      );
-
-      if (!user.at(0)) {
-        return null;
-      }
-
-      return user.at(0);
+      return await this.userRepository.findOne({
+        where: {
+          id: userId,
+        },
+        relations: {
+          recoveryCode: {},
+          emailConfirmation: {},
+        },
+      });
     } catch (e) {
+      console.error('Error getUserById', {
+        error: e,
+      });
       return null;
     }
   }
 
   public async create(
     newUser: NewUserDto,
-    emailConfirmation?: EmailConfirmation,
+    emailConfirmation?: NewEmailConfirmationDto,
   ): Promise<string> {
     try {
-      const result = await this.dataSource.query(
-        `
-      INSERT INTO users (login, password, email)
-      VALUES ($1, $2, $3)
-      RETURNING id;
-    `,
-        [newUser.login, newUser.password, newUser.email],
-      );
+      const user = this.userRepository.create({
+        login: newUser.login,
+        password: newUser.password,
+        email: newUser.email,
+      });
 
-      const userId = result[0].id;
+      const savedUser = await this.userRepository.save(user);
+
+      const userId = savedUser.id;
 
       if (emailConfirmation) {
-        await this.dataSource.query(
-          `
-      INSERT INTO email_confirmations (user_id, is_confirmed, confirmation_code, expiration_date)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id;
-    `,
-          [
-            userId,
-            emailConfirmation.is_confirmed,
-            emailConfirmation.confirmation_code,
-            emailConfirmation.expiration_date,
-          ],
-        );
+        const emailConf = this.emailConfirmationRepository.create({
+          user_id: userId,
+          is_confirmed: emailConfirmation.isConfirmed,
+          confirmation_code: emailConfirmation.confirmationCode,
+          expiration_date: emailConfirmation.expirationDate,
+        });
+
+        await this.emailConfirmationRepository.save(emailConf);
       }
 
       return userId;
@@ -91,18 +75,11 @@ export class UsersRepository {
 
   public async delete(userId: string): Promise<boolean> {
     try {
-      const result = await this.dataSource.query(
-        `
-      DELETE FROM users 
-      WHERE id = $1
-      RETURNING *;  -- To ensure you get feedback on the operation
-      `,
-        [userId],
-      );
+      const result = await this.userRepository.delete(userId);
 
-      return Boolean(result.at(1));
+      return Boolean(result.affected);
     } catch (e) {
-      console.error('Error during deleteBlogById operation:', e);
+      console.error('Error during delete user operation:', e);
       return false;
     }
   }
@@ -112,18 +89,11 @@ export class UsersRepository {
     password: string,
   ): Promise<boolean> {
     try {
-      const updateResult = await this.dataSource.query(
-        `
-      UPDATE users
-      SET password = $1
-      WHERE id = $2
-      RETURNING id;
-      `,
-        [password, userId],
-      );
+      const result = await this.userRepository.update(userId, { password });
 
-      return Boolean(updateResult.at(1));
+      return Boolean(result.affected);
     } catch (e) {
+      console.error('Error during update user operation:', e);
       return false;
     }
   }
@@ -133,34 +103,35 @@ export class UsersRepository {
     recoveryCodeDto: RecoveryCodeDto,
   ): Promise<boolean> {
     try {
-      // Попытка обновления записи с указанным user_id
-      const updateResult = await this.dataSource.query(
-        `
-      UPDATE recovery_code
-      SET confirmation_code = $1, is_confirmed = $2
-      WHERE user_id = $3
-      RETURNING id;
-      `,
-        [recoveryCodeDto.confirmationCode, recoveryCodeDto.isConfirmed, userId],
+      // Attempt to update the existing recovery code record
+      const updateResult = await this.recoveryCodeRepository.update(
+        { user_id: userId },
+        {
+          confirmation_code: recoveryCodeDto.confirmationCode,
+          is_confirmed: recoveryCodeDto.isConfirmed,
+        },
       );
 
-      // Если запись обновлена, возвращаем true
-      if (Boolean(updateResult.at(1))) {
+      // If an existing record was updated, return true
+      if (Boolean(updateResult.affected)) {
         return true;
       }
 
-      // Если запись не была найдена и обновлена, вставляем новую запись
-      const insertResult = await this.dataSource.query(
-        `
-      INSERT INTO recovery_code (user_id, confirmation_code, is_confirmed)
-      VALUES ($1, $2, $3)
-      RETURNING id;
-      `,
-        [userId, recoveryCodeDto.confirmationCode, recoveryCodeDto.isConfirmed],
+      // If no record was updated, insert a new recovery code record
+      const newRecoveryCode = this.recoveryCodeRepository.create({
+        user_id: userId,
+        confirmation_code: recoveryCodeDto.confirmationCode,
+        is_confirmed: recoveryCodeDto.isConfirmed,
+      });
+
+      const insertResult = await this.recoveryCodeRepository.save(
+        newRecoveryCode,
       );
 
-      return Boolean(insertResult.length);
+      return Boolean(insertResult);
     } catch (e) {
+      console.error('Error during insertRecoveryCode operation:', e);
+
       return false;
     }
   }
@@ -170,17 +141,17 @@ export class UsersRepository {
     isConfirmed: boolean,
   ): Promise<boolean> {
     try {
-      const updateResult = await this.dataSource.query(
-        `
-      UPDATE email_confirmations
-      SET is_confirmed = $2
-      WHERE user_id = $1
-      `,
-        [userId, isConfirmed],
+      const updateResult = await this.emailConfirmationRepository.update(
+        { user_id: userId },
+        {
+          is_confirmed: isConfirmed,
+        },
       );
 
-      return Boolean(updateResult.at(1));
+      return Boolean(updateResult.affected);
     } catch (e) {
+      console.error('Error during toggleIsEmailConfirmed operation:', e);
+
       return false;
     }
   }
@@ -190,120 +161,77 @@ export class UsersRepository {
     confirmationCode: string,
   ): Promise<boolean> {
     try {
-      const updateResult = await this.dataSource.query(
-        `
-      UPDATE email_confirmations
-      SET confirmation_code = $2
-      WHERE user_id = $1
-      `,
-        [userId, confirmationCode],
+      const updateResult = await this.emailConfirmationRepository.update(
+        { user_id: userId },
+        {
+          confirmation_code: confirmationCode,
+        },
       );
 
-      return Boolean(updateResult.at(1));
+      return Boolean(updateResult.affected);
     } catch (e) {
+      console.error('Error during updateEmailConfirmationCode operation:', e);
+
       return false;
     }
   }
 
   public async isLoginExist(login: string): Promise<boolean> {
-    const isLogin = await this.dataSource.query(
-      ` 
-    select 1 from users u
-    where login = $1
-    `,
-      [login],
-    );
-
-    return Boolean(isLogin.at(0));
+    const user = await this.userRepository.findOne({
+      where: {
+        login,
+      },
+      select: ['id'],
+    });
+    return Boolean(user);
   }
 
   public async isEmailExist(email: string): Promise<boolean> {
-    const isExist = await this.dataSource.query(
-      ` 
-    select 1 from users u
-    where email = $1
-    `,
-      [email],
-    );
-
-    return Boolean(isExist.at(0));
+    const user = await this.userRepository.findOne({
+      where: {
+        email,
+      },
+      select: ['id'],
+    });
+    return Boolean(user);
   }
 
   public async getUserByLoginOrEmail(
     login: string,
     email: string,
   ): Promise<{
-    user: UserJoined | null;
+    user: User | null;
     foundBy: string | null;
   }> {
-    const user = await this.dataSource.query(
-      `
-    SELECT
-        u.id,
-        u.login,
-        u.password,
-        u.email,
-        u.created_at,
-        rc.is_confirmed AS recovery_is_confirmed,
-        rc.confirmation_code AS recovery_confirmation_code,
-        ec.is_confirmed AS email_is_confirmed,
-        ec.confirmation_code AS email_confirmation_code,
-        ec.expiration_date AS email_expiration_date
-    FROM
-        users u
-    LEFT JOIN
-        email_confirmations ec ON u.id = ec.user_id
-    LEFT JOIN
-        recovery_code rc ON u.id = rc.user_id
-     WHERE u.login = $1 OR u.email = $2
-    `,
-      [
-        login, //$1
-        email, //$2
-      ],
-    );
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.emailConfirmation', 'emailConfirmation')
+      .leftJoinAndSelect('user.recoveryCode', 'recoveryCode')
+      .where('user.login = :login', { login })
+      .orWhere('user.email = :email', { email })
+      .getOne();
 
-    if (!Boolean(user.length)) {
+    if (!user) {
       return { user: null, foundBy: null };
     }
 
-    const foundBy = user.at(0)?.login === login ? 'login' : 'email';
-    return { user: user.at(0), foundBy };
+    const foundBy = user.login === login ? 'login' : 'email';
+    return { user, foundBy };
   }
 
   public async getUserByConfirmationCode(
     confirmationCode: string,
-  ): Promise<UserJoined | null> {
-    const user = await this.dataSource.query(
-      `
-    SELECT
-        u.id,
-        u.login,
-        u.password,
-        u.email,
-        u.created_at,
-        rc.is_confirmed AS recovery_is_confirmed,
-        rc.confirmation_code AS recovery_confirmation_code,
-        ec.is_confirmed AS email_is_confirmed,
-        ec.confirmation_code AS email_confirmation_code,
-        ec.expiration_date AS email_expiration_date
-    FROM
-        users u
-    LEFT JOIN
-        email_confirmations ec ON u.id = ec.user_id
-    LEFT JOIN
-        recovery_code rc ON u.id = rc.user_id
-     WHERE ec.confirmation_code = $1 
-    `,
-      [
-        confirmationCode, //$1
-      ],
-    );
-
-    if (!user) {
-      return null;
-    }
-
-    return user.at(0);
+  ): Promise<User | null> {
+    return await this.userRepository.findOne({
+      where: {
+        emailConfirmation: {
+          confirmation_code: confirmationCode,
+        },
+      },
+      relations: {
+        recoveryCode: {},
+        emailConfirmation: {},
+      },
+    });
   }
 }

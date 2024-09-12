@@ -26,13 +26,13 @@ export class Like {
   @CreateDateColumn({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @Column({ type: 'varchar', length: 10, default: 'None' })
+  @Column({ type: 'varchar', length: 10, default: 'None', nullable: false })
   status: LikeStatusEnum;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', nullable: false })
   author_id: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', nullable: false })
   parent_id: string;
 
   @Column({ type: 'varchar', length: 10 })

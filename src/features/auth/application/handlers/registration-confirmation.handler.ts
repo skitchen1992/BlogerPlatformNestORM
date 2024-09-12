@@ -23,8 +23,8 @@ export class RegistrationConfirmationHandler
         key: 'code',
       });
     }
-    console.log('user', user);
-    if (user.email_is_confirmed) {
+
+    if (user.emailConfirmation.is_confirmed) {
       throw new BadRequestException({
         message: 'Email already confirmed',
         key: 'code',
@@ -32,10 +32,10 @@ export class RegistrationConfirmationHandler
     }
 
     if (
-      user.email_expiration_date &&
+      user.emailConfirmation.expiration_date &&
       isExpiredDate({
         currentDate: getCurrentISOStringDate(),
-        expirationDate: user.email_expiration_date.toString(),
+        expirationDate: user.emailConfirmation.expiration_date.toString(),
       })
     ) {
       throw new BadRequestException({

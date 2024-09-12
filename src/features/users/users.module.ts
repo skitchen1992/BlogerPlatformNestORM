@@ -8,6 +8,10 @@ import { GetAllUsersHandler } from '@features/users/application/handlers/get-all
 import { GetUserHandler } from '@features/users/application/handlers/get-user.handler';
 import { UsersController } from '@features/users/api/users.controller';
 import { SharedModule } from '../../modules/shared.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { User } from '@features/users/domain/user.entity';
+import { EmailConfirmation } from '@features/users/domain/emailConfirmation.entity';
+import { RecoveryCode } from '@features/users/domain/recoveryCode.entity';
 
 const usersProviders: Provider[] = [
   UsersRepository,
@@ -20,7 +24,10 @@ const usersProviders: Provider[] = [
 ];
 
 @Module({
-  imports: [SharedModule],
+  imports: [
+    SharedModule,
+    TypeOrmModule.forFeature([User, EmailConfirmation, RecoveryCode]),
+  ],
   providers: [...usersProviders],
   controllers: [UsersController],
   exports: [UsersQueryRepository, UsersRepository],

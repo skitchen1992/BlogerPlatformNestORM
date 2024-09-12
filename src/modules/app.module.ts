@@ -77,14 +77,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
           port: isLocalEnv ? 5432 : apiSettings.POSTGRES_PORT,
           username: isLocalEnv ? 'postgres' : apiSettings.POSTGRES_USER,
           password: isLocalEnv ? 'password' : apiSettings.POSTGRES_PASSWORD,
-          database: isLocalEnv ? 'postgres' : apiSettings.POSTGRES_DB,
+          database: isLocalEnv ? 'postgresNew' : apiSettings.POSTGRES_DB,
           ssl: isLocalEnv
             ? false
             : {
                 rejectUnauthorized: false, // Используется SSL-соединение
               },
-          entities: [__dirname + '/**/*.entity{.ts,.js}'], // Убедитесь, что вы указали все необходимые расширения файлов
-          synchronize: true, // В production используйте миграции
+          entities: [__dirname + '/../**/*.entity{.ts,.js}'], // Убедитесь, что вы указали все необходимые расширения файлов
+          synchronize: isLocalEnv, // В production используйте миграции
         };
       },
       inject: [ConfigService],

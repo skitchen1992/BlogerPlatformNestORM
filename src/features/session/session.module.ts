@@ -6,6 +6,8 @@ import { SharedModule } from '../../modules/shared.module';
 import { GetAllDevicesHandler } from '@features/session/application/handlers/get-all-devices.handler';
 import { DeleteAllDevicesHandler } from '@features/session/application/handlers/delete-all-devices.handler';
 import { DeleteDeviceHandler } from '@features/session/application/handlers/delete-device.handler';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Session } from '@features/session/domain/session.entity';
 
 const sessionProviders: Provider[] = [
   SessionsRepository,
@@ -16,7 +18,7 @@ const sessionProviders: Provider[] = [
 ];
 
 @Module({
-  imports: [SharedModule],
+  imports: [SharedModule, TypeOrmModule.forFeature([Session])],
   providers: [...sessionProviders],
   controllers: [SessionController],
   exports: [SessionsRepository, SessionsQueryRepository],

@@ -50,8 +50,8 @@ export class NewPassportHandler
     const user = await this.usersRepository.getUserById(userId);
 
     if (
-      user?.recovery_is_confirmed ||
-      user?.recovery_confirmation_code !== recoveryCode
+      user?.recoveryCode?.is_confirmed ||
+      user?.recoveryCode?.confirmation_code !== recoveryCode
     ) {
       throw new BadRequestException({
         message: 'Recovery code not correct',
