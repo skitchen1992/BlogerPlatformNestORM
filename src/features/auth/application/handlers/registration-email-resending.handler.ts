@@ -32,7 +32,7 @@ export class RegistrationEmailResendingHandler
       });
     }
 
-    if (user.emailConfirmation.is_confirmed) {
+    if (user.emailConfirmation?.is_confirmed) {
       throw new BadRequestException({
         message: 'Email already confirmed',
         key: 'email',
@@ -40,7 +40,7 @@ export class RegistrationEmailResendingHandler
     }
 
     if (
-      user.emailConfirmation.expiration_date &&
+      user.emailConfirmation?.expiration_date &&
       isExpiredDate({
         expirationDate: user.emailConfirmation.expiration_date.toString(),
         currentDate: getCurrentISOStringDate(),

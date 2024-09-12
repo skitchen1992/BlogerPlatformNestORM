@@ -16,6 +16,8 @@ import { CreatePostHandler } from '@features/posts/application/handlers/create-p
 import { UpdatePostHandler } from '@features/posts/application/handlers/update-post.handler';
 import { DeletePostHandler } from '@features/posts/application/handlers/delete-post.handler';
 import { BlogsController } from '@features/blogs/api/blogsController';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Blog } from '@features/blogs/domain/blog.entity';
 
 const blogsProviders: Provider[] = [
   BlogsRepository,
@@ -35,6 +37,7 @@ const blogsProviders: Provider[] = [
 @Module({
   imports: [
     SharedModule,
+    TypeOrmModule.forFeature([Blog]),
     forwardRef(() => PostsModule),
     forwardRef(() => UsersModule),
   ],

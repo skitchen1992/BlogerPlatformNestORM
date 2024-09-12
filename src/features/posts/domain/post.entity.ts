@@ -41,9 +41,9 @@ export class Post {
   })
   created_at: Date;
 
-  @ManyToOne(() => Blog, (blog) => blog.posts, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'blog_id' }) // Используем нотацию через нижнее подчеркивание
-  blog?: Blog;
+  // @ManyToOne(() => Blog, (blog) => blog.posts, { onDelete: 'CASCADE' })
+  // @JoinColumn({ name: 'blog_id' }) // Используем нотацию через нижнее подчеркивание
+  // blog?: Blog;
 
   @OneToMany(() => Comment, (comment) => comment.post)
   comments?: Comment[];

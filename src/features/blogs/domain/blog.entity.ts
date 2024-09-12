@@ -1,26 +1,34 @@
-import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
-import { Post } from '@features/posts/domain/post.entity';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+} from 'typeorm';
 
 @Entity('blogs')
 export class Blog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 15 })
+  @Column({ type: 'varchar', collation: 'C', length: 15, nullable: false })
   name: string;
 
-  @Column({ type: 'varchar', length: 500 })
+  @Column({ type: 'varchar', length: 500, nullable: false })
   description: string;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ type: 'varchar', length: 100, nullable: false })
   website_url: string;
 
-  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn({
+    type: 'timestamptz',
+    nullable: false,
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   created_at: Date;
 
-  @Column({ type: 'boolean' })
+  @Column({ type: 'boolean', nullable: false, default: false })
   is_membership: boolean;
 
-  @OneToMany(() => Post, (post) => post.blog)
-  posts?: Post[];
+  // @OneToMany(() => Post, (post) => post.blog)
+  // posts?: Post[];
 }
