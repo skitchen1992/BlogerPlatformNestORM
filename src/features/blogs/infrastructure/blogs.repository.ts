@@ -16,7 +16,7 @@ export class BlogsRepository {
     try {
       return await this.blogRepository.findOneBy({ id: blogId });
     } catch (e) {
-      console.error('Error inserting blog into database', e);
+      console.error('Error during getBlogById', e);
       return null;
     }
   }

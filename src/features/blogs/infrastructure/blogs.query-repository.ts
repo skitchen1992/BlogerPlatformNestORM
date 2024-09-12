@@ -8,31 +8,28 @@ import {
   BlogOutputPaginationDtoMapper,
   BlogsQuery,
 } from '@features/blogs/api/dto/output/blog.output.pagination.dto';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Blog } from '@features/blogs/domain/blog.entity';
 
 @Injectable()
 export class BlogsQueryRepository {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(Blog)
+    private readonly blogRepository: Repository<Blog>,
+  ) {}
 
   public async getById(blogId: string): Promise<BlogOutputDto | null> {
     try {
-      const blog = await this.dataSource.query(
-        `
-      SELECT *
-      FROM blogs b
-      WHERE b.id = $1
-        `,
-        [blogId],
-      );
+      const blog = await this.blogRepository.findOneBy({ id: blogId });
 
-      if (!blog.at(0)) {
+      if (!blog) {
         return null;
       }
 
-      return BlogOutputDtoMapper(blog.at(0));
+      return BlogOutputDtoMapper(blog);
     } catch (e) {
+      console.error('Error during getBlogById', e);
       return null;
     }
   }
@@ -54,53 +51,26 @@ export class BlogsQueryRepository {
     const validSortFields = ['created_at', 'name'];
     const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
 
-    let whereConditions = '';
-    const queryParams: any[] = [];
+    const queryBuilder = this.blogRepository.createQueryBuilder('b');
 
     if (searchNameTerm) {
-      whereConditions = `name ~* $1`;
-      queryParams.push(`.*${searchNameTerm}.*`);
-    } else {
-      whereConditions = 'TRUE';
+      queryBuilder.andWhere('b.name ILIKE :searchName', {
+        searchName: `%${searchNameTerm}%`,
+      });
     }
 
-    const collateClause = sortField === 'name' ? 'COLLATE "C"' : '';
+    queryBuilder
+      .addOrderBy(`b.${sortField}`, direction.toUpperCase() as 'ASC' | 'DESC')
+      .skip((Number(pageNumber) - 1) * Number(pageSize))
+      .take(Number(pageSize));
 
-    const blogs: Blog[] = await this.dataSource.query(
-      `
-    SELECT *
-    FROM
-        blogs 
-    WHERE
-        ${whereConditions}
-    ORDER BY
-        ${sortField} ${collateClause} ${direction}
-    LIMIT $${queryParams.length + 1}
-    OFFSET $${queryParams.length + 2} * ($${queryParams.length + 3} - 1);
-    `,
-      [
-        ...queryParams,
-        pageSize, // LIMIT
-        pageSize, // OFFSET calculation
-        pageNumber, // used for OFFSET
-      ],
-    );
-
-    const totalCount = await this.dataSource.query(
-      `
-    SELECT COUNT(*)::int AS count
-    FROM blogs
-    WHERE
-        ${whereConditions}
-    `,
-      queryParams,
-    );
+    const [blogs, totalCount] = await queryBuilder.getManyAndCount();
 
     const blogList = blogs.map((blog) => BlogOutputDtoMapper(blog));
 
     return BlogOutputPaginationDtoMapper(
       blogList,
-      totalCount.at(0).count,
+      totalCount,
       Number(pageSize),
       Number(pageNumber),
     );
