@@ -17,6 +17,9 @@ import { PostsController } from '@features/posts/api/posts.controller';
 import { GetPostHandler } from '@features/posts/application/handlers/get-post.handler';
 import { UsersModule } from '@features/users/users.module';
 import { IsBlogExistConstrain } from '@infrastructure/decorators/validate/is-blog-exist.decorator';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Blog } from '@features/blogs/domain/blog.entity';
+import { Post } from '@features/posts/domain/post.entity';
 
 const postsProviders: Provider[] = [
   PostsRepository,
@@ -37,6 +40,7 @@ const postsProviders: Provider[] = [
 @Module({
   imports: [
     SharedModule,
+    TypeOrmModule.forFeature([Post]),
     forwardRef(() => BlogsModule),
     forwardRef(() => CommentsModule),
     forwardRef(() => UsersModule),

@@ -3,12 +3,12 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
-  ManyToOne,
-  JoinColumn,
   OneToMany,
+  JoinColumn,
+  ManyToOne,
 } from 'typeorm';
-import { Blog } from '@features/blogs/domain/blog.entity';
 import { Comment } from '@features/comments/domain/comment.entity';
+import { Blog } from '@features/blogs/domain/blog.entity';
 
 @Entity('posts')
 export class Post {
@@ -41,9 +41,9 @@ export class Post {
   })
   created_at: Date;
 
-  // @ManyToOne(() => Blog, (blog) => blog.posts, { onDelete: 'CASCADE' })
-  // @JoinColumn({ name: 'blog_id' }) // Используем нотацию через нижнее подчеркивание
-  // blog?: Blog;
+  @ManyToOne(() => Blog, (blog) => blog.posts, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'blog_id' }) // Используем нотацию через нижнее подчеркивание
+  blog?: Blog;
 
   @OneToMany(() => Comment, (comment) => comment.post)
   comments?: Comment[];
