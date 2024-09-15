@@ -37,10 +37,10 @@ export class User {
     () => EmailConfirmation,
     (emailConfirmation) => emailConfirmation.user,
   )
-  emailConfirmation: EmailConfirmation;
+  emailConfirmation?: EmailConfirmation;
 
   @OneToOne(() => RecoveryCode, (recoveryCode) => recoveryCode.user)
-  recoveryCode: RecoveryCode;
+  recoveryCode?: RecoveryCode;
 
   @OneToMany(() => Session, (session) => session.user)
   sessions?: Session[];

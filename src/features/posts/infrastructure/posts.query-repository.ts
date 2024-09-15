@@ -12,39 +12,46 @@ import {
 } from '@features/posts/api/dto/output/post.output.pagination.dto';
 import { NEWEST_LIKES_COUNT } from '@utils/consts';
 import { User } from '@features/users/domain/user.entity';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Post } from '@features/posts/domain/post.entity';
-import { Like, LikeStatusEnum } from '@features/likes/domain/likes.entity';
+import {
+  Like,
+  LikeStatusEnum,
+  ParentTypeEnum,
+} from '@features/likes/domain/likes.entity';
 
 @Injectable()
 export class PostsQueryRepository {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(Post)
+    private postsRepository: Repository<Post>,
+    @InjectRepository(Like)
+    private likesRepository: Repository<Like>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
+  ) {}
 
   private async getLikeDislikeCounts(
     postId: string,
   ): Promise<{ likes_count: number; dislikes_count: number }> {
-    const result = await this.dataSource.query(
-      `
-    WITH counts AS (
-        SELECT 
-            COUNT(CASE WHEN status = 'Like' THEN 1 END) AS likes_count,
-            COUNT(CASE WHEN status = 'Dislike' THEN 1 END) AS dislikes_count
-        FROM likes
-        WHERE parent_id = $1
-          AND parent_type = 'Post'
-    )
-    SELECT 
-        COALESCE(likes_count, 0) AS likes_count,
-        COALESCE(dislikes_count, 0) AS dislikes_count
-    FROM counts;
-    `,
-      [postId],
-    );
+    const counts = await this.likesRepository
+      .createQueryBuilder('like')
+      .select([
+        `COUNT(CASE WHEN like.status = :like THEN 1 END) AS likes_count`,
+        `COUNT(CASE WHEN like.status = :dislike THEN 1 END) AS dislikes_count`,
+      ])
+      .where('like.parent_id = :postId AND like.parent_type = :parentType', {
+        postId,
+        parentType: 'Post',
+        like: LikeStatusEnum.LIKE,
+        dislike: LikeStatusEnum.DISLIKE,
+      })
+      .getRawOne();
 
     return {
-      likes_count: Number(result.at(0).likes_count),
-      dislikes_count: Number(result.at(0).dislikes_count),
+      likes_count: Number(counts.likes_count) || 0,
+      dislikes_count: Number(counts.dislikes_count) || 0,
     };
   }
 
@@ -56,52 +63,45 @@ export class PostsQueryRepository {
       return LikeStatusEnum.NONE;
     }
 
-    const result = await this.dataSource.query(
-      `
-    SELECT status
-    FROM likes
-    WHERE parent_id = $1
-      AND parent_type = 'Post'
-      AND author_id = $2
-    LIMIT 1;
-    `,
-      [postId, userId],
-    );
+    const like = await this.likesRepository.findOne({
+      where: {
+        parent_id: postId,
+        parent_type: ParentTypeEnum.POST,
+        author_id: userId,
+      },
+    });
 
-    return result?.at(0)?.status || LikeStatusEnum.NONE;
+    return like?.status || LikeStatusEnum.NONE;
   }
 
   private async getNewestLikes(
     postId: string,
     count: number,
   ): Promise<NewestLike[]> {
-    const newestLikes: Like[] = await this.dataSource.query(
-      `
-    SELECT l.created_at, l.author_id
-    FROM likes l
-    WHERE l.parent_id = $1
-      AND l.parent_type = 'Post'
-      AND l.status = 'Like'
-    ORDER BY l.created_at DESC
-    LIMIT $2;
-    `,
-      [postId, count],
-    );
+    const newestLikes = await this.likesRepository
+      .createQueryBuilder('like')
+      .where(
+        'like.parent_id = :postId AND like.parent_type = :parentType AND like.status = :status',
+        {
+          postId,
+          parentType: 'Post',
+          status: LikeStatusEnum.LIKE,
+        },
+      )
+      .orderBy('like.created_at', 'DESC')
+      .take(count)
+      .getMany();
 
     return await Promise.all(
       newestLikes.map(async (like) => {
-        const user: User[] = await this.dataSource.query(
-          `
-    SELECT * FROM users u
-     WHERE u.id = $1
-    `,
-          [like.author_id],
-        );
+        const user = await this.usersRepository.findOne({
+          where: { id: like.author_id },
+        });
 
         return {
           addedAt: like.created_at.toISOString(),
           userId: like.author_id,
-          login: user?.at(0)?.login || '',
+          login: user?.login || '',
         };
       }),
     );
@@ -145,16 +145,9 @@ export class PostsQueryRepository {
     userId?: string,
   ): Promise<PostOutputDto | null> {
     try {
-      const postList = await this.dataSource.query(
-        `
-    SELECT *
-    FROM posts p
-    WHERE p.id = $1
-    `,
-        [postId],
-      );
-
-      const post = postList.at(0);
+      const post = await this.postsRepository.findOne({
+        where: { id: postId },
+      });
 
       if (!post) {
         return null;
@@ -189,36 +182,18 @@ export class PostsQueryRepository {
 
     const sortField = sortBy === 'blogName' ? 'blog_name' : 'created_at';
 
-    let whereConditions = '';
-    const queryParams: any[] = [];
+    const queryBuilder = this.postsRepository.createQueryBuilder('post');
 
     if (params?.blogId) {
-      whereConditions = `blog_id = $1`;
-      queryParams.push(params.blogId);
-    } else {
-      whereConditions = 'TRUE';
+      queryBuilder.where('post.blog_id = :blogId', { blogId: params.blogId });
     }
 
-    const collateClause = sortField === 'blog_name' ? 'COLLATE "C"' : '';
-    const posts: Post[] = await this.dataSource.query(
-      `
-    SELECT *
-    FROM
-        posts 
-    WHERE
-        ${whereConditions}
-    ORDER BY
-        ${sortField} ${collateClause} ${direction}
-    LIMIT $${queryParams.length + 1}
-    OFFSET $${queryParams.length + 2} * ($${queryParams.length + 3} - 1);
-    `,
-      [
-        ...queryParams,
-        pageSize, // LIMIT
-        pageSize, // OFFSET calculation
-        pageNumber, // used for OFFSET
-      ],
-    );
+    queryBuilder
+      .orderBy(`post.${sortField}`, direction.toUpperCase() as 'ASC' | 'DESC')
+      .skip((Number(pageNumber) - 1) * Number(pageSize))
+      .take(Number(pageSize));
+
+    const [posts, totalCount] = await queryBuilder.getManyAndCount();
 
     const postList = await Promise.all(
       posts.map(async (post) => {
@@ -237,19 +212,9 @@ export class PostsQueryRepository {
       }),
     );
 
-    const totalCount = await this.dataSource.query(
-      `
-    SELECT COUNT(*)::int AS count
-    FROM posts
-    WHERE
-        ${whereConditions}
-    `,
-      queryParams,
-    );
-
     return PostOutputPaginationDtoMapper(
       postList,
-      totalCount.at(0).count,
+      totalCount,
       Number(pageSize),
       Number(pageNumber),
     );
