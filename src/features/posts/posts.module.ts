@@ -20,6 +20,8 @@ import { IsBlogExistConstrain } from '@infrastructure/decorators/validate/is-blo
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Blog } from '@features/blogs/domain/blog.entity';
 import { Post } from '@features/posts/domain/post.entity';
+import { Like } from '@features/likes/domain/likes.entity';
+import { User } from '@features/users/domain/user.entity';
 
 const postsProviders: Provider[] = [
   PostsRepository,
@@ -40,7 +42,7 @@ const postsProviders: Provider[] = [
 @Module({
   imports: [
     SharedModule,
-    TypeOrmModule.forFeature([Post]),
+    TypeOrmModule.forFeature([Post, Like, User]),
     forwardRef(() => BlogsModule),
     forwardRef(() => CommentsModule),
     forwardRef(() => UsersModule),
