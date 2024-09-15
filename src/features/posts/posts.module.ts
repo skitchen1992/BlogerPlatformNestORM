@@ -18,7 +18,6 @@ import { GetPostHandler } from '@features/posts/application/handlers/get-post.ha
 import { UsersModule } from '@features/users/users.module';
 import { IsBlogExistConstrain } from '@infrastructure/decorators/validate/is-blog-exist.decorator';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Blog } from '@features/blogs/domain/blog.entity';
 import { Post } from '@features/posts/domain/post.entity';
 import { Like } from '@features/likes/domain/likes.entity';
 import { User } from '@features/users/domain/user.entity';
