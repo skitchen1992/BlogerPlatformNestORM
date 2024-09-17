@@ -24,7 +24,7 @@ export class Comment {
   @Column({ type: 'uuid', nullable: false })
   user_id: string;
 
-  @Column({ type: 'varchar', nullable: false, length: 255 })
+  @Column({ type: 'varchar', collation: 'C', nullable: false, length: 255 })
   user_login: string;
 
   @Column({ type: 'uuid', nullable: false })
