@@ -83,8 +83,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
             : {
                 rejectUnauthorized: false, // Используется SSL-соединение
               },
-          entities: [__dirname + '/../**/*.entity{.ts,.js}'], // Убедитесь, что вы указали все необходимые расширения файлов
-          synchronize: isLocalEnv, // В production используйте миграции
+          entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+          synchronize: false,
+          autoLoadEntities: true,
         };
       },
       inject: [ConfigService],
