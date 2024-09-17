@@ -18,7 +18,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "cross-env ENV=TESTING jest --config ./test/jest-e2e.json --runInBand",
-    "add-migration": "node scripts/add-migration.ts",
+    "add-migration": "node scripts/add-migration.js",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d typeorm.config.ts",
     "apply-migrations": "typeorm-ts-node-commonjs migration:run -d typeorm.config.ts",
     "vercel-build": "nest build"

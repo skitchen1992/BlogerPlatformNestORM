@@ -1,10 +1,10 @@
-import { execSync } from 'child_process';
+const execSync = require('child_process').execSync;
 
 const arg = process.argv[2];
 if (!arg) throw new Error('😲 Pass the name for migration');
 
 try {
-  const generateCommand = `typeorm-ts-node-commonjs migration:generate -d typeorm.config.js ./migrations/${arg}`;
+  const generateCommand = `typeorm-ts-node-commonjs migration:generate -d ./typeorm.config.ts ./migrations/${arg}`;
 
   execSync(generateCommand, { stdio: 'inherit' });
 } catch (error) {
