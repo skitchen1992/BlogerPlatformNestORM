@@ -41,9 +41,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
           infer: true,
         });
         const isTestEnv = environmentSettings.isTesting();
+        const isDevelopmentEnv = environmentSettings.isDevelopment();
 
         // Отключение троттлинга в тестовой среде
-        if (isTestEnv) {
+        if (isDevelopmentEnv) {
           return [
             {
               ttl: 0,
