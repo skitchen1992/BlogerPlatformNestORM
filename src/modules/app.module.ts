@@ -41,9 +41,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
           infer: true,
         });
         const isTestEnv = environmentSettings.isTesting();
+        const isDevelopmentEnv = environmentSettings.isDevelopment();
 
         // Отключение троттлинга в тестовой среде
-        if (isTestEnv) {
+        if (isDevelopmentEnv) {
           return [
             {
               ttl: 0,
@@ -83,8 +84,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
             : {
                 rejectUnauthorized: false, // Используется SSL-соединение
               },
-          entities: [__dirname + '/../**/*.entity{.ts,.js}'], // Убедитесь, что вы указали все необходимые расширения файлов
-          synchronize: isLocalEnv, // В production используйте миграции
+          entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+          synchronize: false,
+          autoLoadEntities: true,
         };
       },
       inject: [ConfigService],

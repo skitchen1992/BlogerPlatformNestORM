@@ -59,6 +59,13 @@ $ yarn run test:cov
 
 # test for users 
 $ yarn cross-env ENV=TESTING jest  test/e2e/users/users.e2e-spec.ts --config ./test/jest-e2e.json --runInBand
+
+# add migration by script
+pnpm add-migration <migration name>
+
+# add migration
+pnpm migration:generate ./migrations/<migration name>
+
 ```
 
 ## Support

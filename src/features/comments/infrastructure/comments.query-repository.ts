@@ -10,13 +10,22 @@ import {
   CommentOutputPaginationDtoMapper,
   CommentQuery,
 } from '@features/comments/api/dto/output/comment.output.pagination.dto';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
-import { LikeStatusEnum } from '@features/likes/domain/likes.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import {
+  Like,
+  LikeStatusEnum,
+  ParentTypeEnum,
+} from '@features/likes/domain/likes.entity';
 
 @Injectable()
 export class CommentsQueryRepository {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(Comment)
+    private readonly commentRepository: Repository<Comment>,
+    @InjectRepository(Like)
+    private readonly likeRepository: Repository<Like>,
+  ) {}
 
   private async getLikesInfoForAuthUser(
     commentId: string,
@@ -53,45 +62,40 @@ export class CommentsQueryRepository {
       return LikeStatusEnum.NONE;
     }
 
-    const result = await this.dataSource.query(
-      `
-    SELECT status
-    FROM likes
-    WHERE parent_id = $1
-      AND parent_type = 'Comment'
-      AND author_id = $2
-    LIMIT 1;
-    `,
-      [commentId, userId],
-    );
+    const like = await this.likeRepository.findOne({
+      where: {
+        parent_id: commentId,
+        parent_type: ParentTypeEnum.COMMENT,
+        author_id: userId,
+      },
+      select: ['status'],
+    });
 
-    return result?.at(0)?.status || LikeStatusEnum.NONE;
+    return like?.status || LikeStatusEnum.NONE;
   }
 
   private async getLikeDislikeCounts(
     commentId: string,
   ): Promise<{ likes_count: number; dislikes_count: number }> {
-    const result = await this.dataSource.query(
-      `
-    WITH counts AS (
-        SELECT 
-            COUNT(CASE WHEN status = 'Like' THEN 1 END) AS likes_count,
-            COUNT(CASE WHEN status = 'Dislike' THEN 1 END) AS dislikes_count
-        FROM likes
-        WHERE parent_id = $1
-          AND parent_type = 'Comment'
-    )
-    SELECT 
-        COALESCE(likes_count, 0) AS likes_count,
-        COALESCE(dislikes_count, 0) AS dislikes_count
-    FROM counts;
-    `,
-      [commentId],
-    );
+    const result = await this.likeRepository
+      .createQueryBuilder('like')
+      .select([
+        `COUNT(CASE WHEN like.status = :like THEN 1 END) AS likes_count`,
+        `COUNT(CASE WHEN like.status = :dislike THEN 1 END) AS dislikes_count`,
+      ])
+      .where('like.parent_id = :commentId', { commentId })
+      .andWhere('like.parent_type = :parentType', {
+        parentType: ParentTypeEnum.COMMENT,
+      })
+      .setParameters({
+        like: LikeStatusEnum.LIKE,
+        dislike: LikeStatusEnum.DISLIKE,
+      })
+      .getRawOne();
 
     return {
-      likes_count: Number(result.at(0).likes_count),
-      dislikes_count: Number(result.at(0).dislikes_count),
+      likes_count: Number(result.likes_count),
+      dislikes_count: Number(result.dislikes_count),
     };
   }
 
@@ -100,16 +104,9 @@ export class CommentsQueryRepository {
     userId?: string,
   ): Promise<CommentOutputDto | null> {
     try {
-      const commentList: Comment[] = await this.dataSource.query(
-        `
-    SELECT *
-    FROM comments c
-    WHERE c.id = $1
-    `,
-        [commentId],
-      );
-
-      const comment = commentList.at(0);
+      const comment = await this.commentRepository.findOne({
+        where: { id: commentId },
+      });
 
       if (!comment) {
         return null;
@@ -146,37 +143,23 @@ export class CommentsQueryRepository {
 
     const sortField = sortBy === 'userLogin' ? 'user_login' : 'created_at';
 
-    let whereConditions = '';
-    const queryParams: any[] = [];
+    const queryBuilder = this.commentRepository.createQueryBuilder('comment');
 
     if (params?.postId) {
-      whereConditions = `post_id = $1`;
-      queryParams.push(params.postId);
-    } else {
-      whereConditions = 'TRUE';
+      queryBuilder.where('comment.post_id = :postId', {
+        postId: params.postId,
+      });
     }
 
-    const collateClause = sortField === 'user_login' ? 'COLLATE "C"' : '';
+    queryBuilder
+      .orderBy(
+        `comment.${sortField}`,
+        direction.toUpperCase() as 'ASC' | 'DESC',
+      )
+      .skip((Number(pageNumber) - 1) * Number(pageSize))
+      .take(Number(pageSize));
 
-    const comments: Comment[] = await this.dataSource.query(
-      `
-    SELECT *
-    FROM
-        comments
-    WHERE
-        ${whereConditions}
-    ORDER BY
-        ${sortField} ${collateClause} ${direction}
-    LIMIT $${queryParams.length + 1}
-    OFFSET $${queryParams.length + 2} * ($${queryParams.length + 3} - 1);
-    `,
-      [
-        ...queryParams,
-        pageSize, // LIMIT
-        pageSize, // OFFSET calculation
-        pageNumber, // used for OFFSET
-      ],
-    );
+    const [comments, totalCount] = await queryBuilder.getManyAndCount();
 
     const commentList = await Promise.all(
       comments.map(async (comment) => {
@@ -190,19 +173,9 @@ export class CommentsQueryRepository {
       }),
     );
 
-    const totalCount = await this.dataSource.query(
-      `
-    SELECT COUNT(*)::int AS count
-    FROM comments
-    WHERE
-        ${whereConditions}
-    `,
-      queryParams,
-    );
-
     return CommentOutputPaginationDtoMapper(
       commentList,
-      totalCount.at(0).count,
+      totalCount,
       Number(pageSize),
       Number(pageNumber),
     );

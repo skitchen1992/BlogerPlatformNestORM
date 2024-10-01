@@ -10,6 +10,9 @@ import { GetCommentHandler } from '@features/comments/application/handlers/get-c
 import { IsCommentExistHandler } from '@features/comments/application/handlers/is-comment-exist.handler';
 import { CommentsController } from '@features/comments/api/comments.controller';
 import { UsersModule } from '@features/users/users.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Comment } from '@features/comments/domain/comment.entity';
+import { Like } from '@features/likes/domain/likes.entity';
 
 const commentsProviders: Provider[] = [
   CommentsRepository,
@@ -23,7 +26,11 @@ const commentsProviders: Provider[] = [
 ];
 
 @Module({
-  imports: [SharedModule, forwardRef(() => UsersModule)],
+  imports: [
+    SharedModule,
+    forwardRef(() => UsersModule),
+    TypeOrmModule.forFeature([Comment, Like]),
+  ],
   providers: [...commentsProviders],
   controllers: [CommentsController],
   exports: [CommentsRepository, CommentsQueryRepository],

@@ -2,31 +2,21 @@ import { Injectable } from '@nestjs/common';
 import { Comment } from '../domain/comment.entity';
 import { UpdateCommentDto } from '@features/comments/api/dto/input/update-comment.input.dto';
 import { NewCommentDto } from '@features/comments/api/dto/new-comment.dto';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class CommentsRepository {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(Comment)
+    private readonly commentRepository: Repository<Comment>,
+  ) {}
 
   public async getById(commentId: string): Promise<Comment | null> {
     try {
-      const commentList: Comment[] = await this.dataSource.query(
-        `
-    SELECT *
-    FROM comments c
-    WHERE c.id = $1
-    `,
-        [commentId],
-      );
-
-      const comment = commentList.at(0);
-
-      if (!comment) {
-        return null;
-      }
-
-      return comment;
+      return await this.commentRepository.findOne({
+        where: { id: commentId },
+      });
     } catch (e) {
       return null;
     }
@@ -34,21 +24,15 @@ export class CommentsRepository {
 
   public async create(newComment: NewCommentDto): Promise<string> {
     try {
-      const result = await this.dataSource.query(
-        `
-      INSERT INTO comments (content, user_id, user_login, post_id)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id;
-    `,
-        [
-          newComment.content,
-          newComment.userId,
-          newComment.userLogin,
-          newComment.postId,
-        ],
-      );
+      const comment = this.commentRepository.create({
+        content: newComment.content,
+        user_id: newComment.userId,
+        user_login: newComment.userLogin,
+        post_id: newComment.postId,
+      });
 
-      return result[0].id;
+      const savedComment = await this.commentRepository.save(comment);
+      return savedComment.id;
     } catch (e) {
       console.error('Error inserting comment into database', {
         error: e,
@@ -62,17 +46,11 @@ export class CommentsRepository {
     data: UpdateCommentDto,
   ): Promise<boolean> {
     try {
-      const updateResult = await this.dataSource.query(
-        `
-      UPDATE comments
-      SET content = $1 
-      WHERE id = $2
-      RETURNING id;
-      `,
-        [data.content, commentId],
+      const result = await this.commentRepository.update(
+        { id: commentId },
+        { content: data.content },
       );
-
-      return Boolean(updateResult.at(1));
+      return Boolean(result.affected);
     } catch (e) {
       console.error('Error updating comment into database', {
         error: e,
@@ -83,16 +61,8 @@ export class CommentsRepository {
 
   public async delete(commentId: string): Promise<boolean> {
     try {
-      const result = await this.dataSource.query(
-        `
-      DELETE FROM comments 
-      WHERE id = $1
-      RETURNING *;
-      `,
-        [commentId],
-      );
-
-      return Boolean(result.at(1));
+      const result = await this.commentRepository.delete({ id: commentId });
+      return Boolean(result.affected);
     } catch (e) {
       console.error('Error during delete comment operation:', e);
       return false;

@@ -23,7 +23,11 @@ export class Like {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @CreateDateColumn({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn({
+    type: 'timestamptz',
+    nullable: false,
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   created_at: Date;
 
   @Column({ type: 'varchar', length: 10, default: 'None', nullable: false })
@@ -39,6 +43,6 @@ export class Like {
   parent_type: ParentTypeEnum;
 
   @ManyToOne(() => User, (user) => user.likes, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'authorId' })
+  @JoinColumn({ name: 'author_id' })
   author: User;
 }
